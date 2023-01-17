@@ -1,0 +1,6 @@
+runtime: python37
+entrypoint: gunicorn -b :$PORT main:app
+
+env_variables:
+    FLASK_ENV: production
+    FLASK_APP: VideoStreaming.py
