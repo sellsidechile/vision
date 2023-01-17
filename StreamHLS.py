@@ -19,7 +19,7 @@ start_time = time.time()
 
 cap = cv2.VideoCapture(0)
 width = 640#int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-height = 380#int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+height = 360#int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
 
@@ -41,22 +41,111 @@ Eje = True # x = True, y = False
 
 sheet = GoogleSheet()
 sheet.lengthLeftRigth()
-
+'''
 cmd = ['ffmpeg',
-           '-y',
-           '-f',
-           'rawvideo','-vcodec',
-           'rawvideo',
-           '-s', '{}x{}'.format(width, height),
-           '-r', '5',
-           '-i', '-',
-           '-c:v', 'libx264',
-           '-pix_fmt', 'yuv420p',
-           '-preset', 'ultrafast',
-           '-f','hls',
-           '-hls_time', '0',
-           '-hls_list_size', '0',
-           'http://35.238.97.130:8000/live/test.m3u8']
+       '-y',
+       '-re',
+       '-f','rawvideo',
+       "-vcodec", "rawvideo",
+       '-pix_fmt', 'bgr24',
+       '-s', '{}x{}'.format(width, height),
+       #'-framerate','5',
+       '-i', '-',
+       '-c:v', 'libx264',
+       '-s', '{}x{}'.format(width, height),
+       '-pix_fmt', 'yuv420p',
+       '-acodec','libopus',
+       #'-ac','1',
+       #'-ar','16000',
+       '-preset', 'ultrafast',
+       '-tune','zerolatency',
+       '-bufsize','100',
+       #'-b:a','8k',
+       #'-vbr','constrained',
+       '-r','5',
+       '-f','flv',
+       'rtmp://visionsinc.xyz/show/test']'''
+'''
+cmd = [
+    'ffmpeg',
+    '-y',
+    '-f','rawvideo',
+    '-vcodec', 'rawvideo',
+    '-pix_fmt', 'bgr24',
+    '-s', '{}x{}'.format(width, height),
+    #'-r','5',
+    #'-framerate','4',
+    '-i','-',
+    
+    '-c:v', 'libx264',
+    '-pix_fmt','yuv420p',
+    '-vb','3200k',
+    '-preset', 'ultrafast',
+    '-f','flv',
+    'rtmp://visionsinc.xyz/show/test'
+    #
+    ]
+cmd = [
+    'ffmpeg',
+    '-f','rawvideo',
+    '-pix_fmt', 'bgr24',
+    '-s', '{}x{}'.format(width, height),
+    '-r','5',
+    '-i','-',
+    '-c:v','libx264',
+    '-preset','ultrafast',
+    '-tune','zerolatency',
+    '-r','24',
+    '-bufsize','100',
+    '-vb','3200k',
+    '-f','flv',
+    'rtmp://visionsinc.xyz/show/test'
+    ]
+'''
+'''
+cmd = [ 'ffmpeg',
+        '-re',
+        '-i', '-', #input from pipe
+        '-f', 'lavfi',
+        '-i','anullsrc', #Youtube Live needs some audio, so create fake audio src
+        '-acodec', 'libmp3lame', 
+        '-ar', '44100',
+        '-deinterlace', 
+        '-vcodec', 'libx264', #Use libx264 if no nvidia GPU available
+        '-pix_fmt', 'yuv420p',
+        '-s', '{}x{}'.format(width, height),
+        '-preset', 'ultrafast',
+    '-tune', 'fastdecode',
+    '-r', '24', #Frame rate
+    '-g', '120', 
+    '-b:v', '2500k',
+    '-threads:6', 
+    '-qscale:3',
+    '-b:a:712000',
+    '-buffsize:200k',
+    '-f' , 'flv',
+    'rtmp://visionsinc.xyz/show/test',
+        ]'''
+
+cmd = [
+    'ffmpeg',
+    '-hide_banner',
+    '-stream_loop', '-1',
+    '-re',
+    '-f','rawvideo',
+    '-framerate','5',
+    '-s','{}x{}'.format(width, height),
+    '-pix_fmt', 'bgr24',
+    '-i','-',
+    '-g','48',
+    '-pix_fmt', 'yuv420p',
+    '-c:v','libx264',
+    '-preset','ultrafast',
+    '-tune','zerolatency',
+    '-f','flv',
+    'rtmp://visionsinc.xyz/show/test'
+    ]
+
 proc = sp.Popen(cmd, stdin = sp.PIPE)
 
 while True:
@@ -72,11 +161,10 @@ while True:
     objects = []
     centerPointsCurFrame = []
     
-    #frame = cv2.flip(frame, 1)
+    frame = cv2.flip(frame, 1)
     frame = cv2.resize(frame, (width,height))  
     
     rgb_image = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-    #print(rgb_image)
     
     input_tensor = vision.TensorImage.create_from_array(rgb_image)
     
@@ -186,8 +274,8 @@ while True:
     cv2.putText(frame, f'Entrada:{sheet.lenRight}; Salida: {sheet.lenLeft}',(10,35), 2,1, (0, 0, 0), 2, cv2.FONT_HERSHEY_SIMPLEX )
     
     cv2.imshow('frame', frame)
-    
     proc.stdin.write(frame.tobytes())
+        
     
     centerPointsPrevFrame = centerPointsCurFrame.copy()
     
